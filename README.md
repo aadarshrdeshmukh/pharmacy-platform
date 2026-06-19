@@ -1,4 +1,4 @@
-<![CDATA[# 💊 Pharmacy Inventory & Prescription Management Platform
+# 💊 Pharmacy Inventory & Prescription Management Platform
 
 A full-stack, cloud-native platform for managing pharmacy inventory, tracking prescriptions, and automating the complete DevOps lifecycle — from local development to production deployment on AWS EKS.
 
@@ -354,7 +354,7 @@ This project is licensed under the **MIT License**.
 ```
 MIT License
 
-Copyright (c) 2026 Pharmacy Platform Contributors
+Copyright (c) 2026 PharmaCare Team
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -374,4 +374,4 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-]]>
+

@@ -1,4 +1,4 @@
-<![CDATA[# Contributing to Pharmacy Platform
+# Contributing to Pharmacy Platform
 
 Thank you for your interest in contributing to the Pharmacy Inventory & Prescription Management Platform! This document outlines our development standards, branching strategy, and workflow to ensure a consistent, high-quality codebase.
 
@@ -273,4 +273,4 @@ docker-compose up --build
 - Frontend: http://localhost:3000
 - Backend: http://localhost:3001
 - Default login: `admin@pharmacy.com` / `admin123`
-]]>
+
