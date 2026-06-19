@@ -1,0 +1,45 @@
+# =============================================================================
+# namespace.yaml – Pharmacy Platform Namespaces
+# =============================================================================
+# Creates four isolated namespaces:
+#   - pharmacy-app : core application workloads (backend, frontend, DB)
+#   - monitoring   : Prometheus, Grafana, alerting stack
+#   - logging      : EFK/ELK stack (Elasticsearch, Filebeat, Kibana)
+#   - vault        : HashiCorp Vault for secrets management
+# =============================================================================
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pharmacy-app
+  labels:
+    app.kubernetes.io/part-of: pharmacy-platform
+    purpose: application
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/part-of: pharmacy-platform
+    purpose: monitoring
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+  labels:
+    app.kubernetes.io/part-of: pharmacy-platform
+    purpose: logging
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vault
+  labels:
+    app.kubernetes.io/part-of: pharmacy-platform
+    purpose: secrets-management

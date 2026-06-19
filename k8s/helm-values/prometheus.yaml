@@ -1,0 +1,114 @@
+# =============================================================================
+# prometheus.yaml – Helm Values for kube-prometheus-stack
+# =============================================================================
+# Install with:
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm install prometheus prometheus-community/kube-prometheus-stack \
+#     -n monitoring --create-namespace -f k8s/helm-values/prometheus.yaml
+# =============================================================================
+
+# ── Grafana Configuration ────────────────────────────────────────────────────
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: "pharmacy-grafana-admin"          # TODO: replace with a strong password
+
+  # Persist Grafana data (dashboards, settings, etc.)
+  persistence:
+    enabled: true
+    size: 5Gi
+
+  # Auto-provision the pharmacy dashboard from the ConfigMap/sidecar
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      folder: /tmp/dashboards
+      searchNamespace: monitoring
+
+  # Default data source (auto-configured by the chart)
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://prometheus-kube-prometheus-prometheus.monitoring:9090
+          access: proxy
+          isDefault: true
+
+# ── Prometheus Server Configuration ──────────────────────────────────────────
+prometheus:
+  prometheusSpec:
+    # Retention period for time-series data
+    retention: 15d
+
+    # Persistent storage for TSDB
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 50Gi
+
+    # Pick up ServiceMonitors and PrometheusRules from ALL namespaces
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    ruleNamespaceSelector: {}
+
+    # Additional scrape configs for pharmacy-app namespace pods
+    additionalScrapeConfigs:
+      - job_name: 'pharmacy-app-pods'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - pharmacy-app
+        relabel_configs:
+          # Only scrape pods with prometheus.io/scrape=true annotation
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: 'true'
+          # Use the prometheus.io/path annotation for the metrics path
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          # Use the prometheus.io/port annotation for the metrics port
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          # Carry over useful pod labels
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+# ── Alertmanager Configuration ───────────────────────────────────────────────
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+
+# ── Node Exporter & Kube State Metrics ───────────────────────────────────────
+nodeExporter:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true

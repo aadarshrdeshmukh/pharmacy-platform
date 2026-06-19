@@ -1,0 +1,33 @@
+# =============================================================================
+# servicemonitor.yaml – Prometheus ServiceMonitor for Backend
+# =============================================================================
+# Tells Prometheus (deployed via kube-prometheus-stack) to scrape the
+# pharmacy-backend pods at /metrics on port 3001 every 30 seconds.
+#
+# Prerequisites:
+#   - kube-prometheus-stack Helm chart installed in the "monitoring" namespace
+#   - Prometheus Operator CRDs available in the cluster
+# =============================================================================
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pharmacy-backend-monitor
+  namespace: monitoring
+  labels:
+    app: pharmacy-backend
+    app.kubernetes.io/part-of: pharmacy-platform
+    release: prometheus                    # Must match the Helm release label selector
+spec:
+  # Select the backend service across the pharmacy-app namespace
+  namespaceSelector:
+    matchNames:
+      - pharmacy-app
+  selector:
+    matchLabels:
+      app: pharmacy-backend
+  endpoints:
+    - port: http                           # Matches the port name in backend-service.yaml
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

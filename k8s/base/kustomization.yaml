@@ -1,0 +1,23 @@
+# =============================================================================
+# kustomization.yaml – Kustomize Resource Index
+# =============================================================================
+# Lists all Kubernetes manifests in the base overlay.
+# Apply with:  kubectl apply -k k8s/base/
+# =============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - backend-deployment.yaml
+  - backend-service.yaml
+  - frontend-deployment.yaml
+  - frontend-service.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - servicemonitor.yaml
+  - prometheus-rules.yaml
+  - networkpolicy.yaml

@@ -1,0 +1,23 @@
+# =============================================================================
+# configmap.yaml – Backend Application Configuration
+# =============================================================================
+# Stores non-sensitive configuration consumed by the backend pods.
+# All values below are placeholders – update them for your environment.
+# =============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: pharmacy-app
+  labels:
+    app: pharmacy-backend
+    app.kubernetes.io/part-of: pharmacy-platform
+data:
+  # ── Database connection settings ───────────────────────────────────────────
+  DB_HOST: "pharmacy-db.c9xxxxxxxxxxx.us-east-1.rds.amazonaws.com"   # TODO: replace with your RDS / DB host
+  DB_PORT: "5432"                                                     # TODO: replace if using a non-default port
+  DB_NAME: "pharmacy_db"                                              # TODO: replace with your database name
+
+  # ── Node.js runtime ───────────────────────────────────────────────────────
+  NODE_ENV: "production"                                              # TODO: replace (development | staging | production)

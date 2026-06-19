@@ -1,0 +1,26 @@
+# =============================================================================
+# frontend-service.yaml – Frontend ClusterIP Service
+# =============================================================================
+# Exposes the frontend deployment internally within the cluster on port 80.
+# The ALB Ingress routes external traffic to this service.
+# =============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: pharmacy-app
+  labels:
+    app: pharmacy-frontend
+    app.kubernetes.io/name: pharmacy-frontend
+    app.kubernetes.io/part-of: pharmacy-platform
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: pharmacy-frontend
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80

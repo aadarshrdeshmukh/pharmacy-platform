@@ -1,0 +1,100 @@
+# =============================================================================
+# vault.yaml – Helm Values for HashiCorp Vault
+# =============================================================================
+# Install with:
+#   helm repo add hashicorp https://helm.releases.hashicorp.com
+#   helm install vault hashicorp/vault \
+#     -n vault --create-namespace -f k8s/helm-values/vault.yaml
+#
+# This configuration sets up Vault in standalone (dev-friendly) mode with
+# the Agent Injector enabled for automatic secret injection into pods.
+# =============================================================================
+
+# ── Vault Server Configuration ──────────────────────────────────────────────
+server:
+  # Standalone mode (single instance – suitable for dev/staging)
+  # For production, switch to HA mode with Raft or Consul backend.
+  standalone:
+    enabled: true
+    config: |
+      ui = true
+
+      listener "tcp" {
+        tls_disable = 1
+        address     = "[::]:8200"
+        cluster_address = "[::]:8201"
+      }
+
+      storage "file" {
+        path = "/vault/data"
+      }
+
+  # ── Persistent storage for Vault data ─────────────────────────────────────
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    accessMode: ReadWriteOnce
+
+  # ── Resource Requests & Limits ─────────────────────────────────────────────
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+  # ── Service ────────────────────────────────────────────────────────────────
+  service:
+    type: ClusterIP
+    port: 8200
+
+  # ── Readiness/Liveness ─────────────────────────────────────────────────────
+  readinessProbe:
+    enabled: true
+    path: "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+  livenessProbe:
+    enabled: true
+    path: "/v1/sys/health?standbyok=true"
+    initialDelaySeconds: 60
+
+# ── Vault Agent Injector ─────────────────────────────────────────────────────
+# The injector watches for pod annotations (vault.hashicorp.com/agent-inject)
+# and automatically adds an init/sidecar container that fetches secrets.
+injector:
+  enabled: true
+  replicas: 1
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+# ── Vault UI ─────────────────────────────────────────────────────────────────
+ui:
+  enabled: true
+  serviceType: ClusterIP
+  servicePort: 8200
+
+# ── HA Mode (disabled for dev – enable for production) ───────────────────────
+# server:
+#   ha:
+#     enabled: true
+#     replicas: 3
+#     raft:
+#       enabled: true
+#       setNodeId: true
+#       config: |
+#         ui = true
+#         listener "tcp" {
+#           tls_disable = 1
+#           address     = "[::]:8200"
+#           cluster_address = "[::]:8201"
+#         }
+#         storage "raft" {
+#           path = "/vault/data"
+#         }
+#         service_registration "kubernetes" {}

@@ -1,0 +1,90 @@
+# =============================================================================
+# filebeat.yaml – Helm Values for Filebeat
+# =============================================================================
+# Install with:
+#   helm repo add elastic https://helm.elastic.co
+#   helm install filebeat elastic/filebeat \
+#     -n logging --create-namespace -f k8s/helm-values/filebeat.yaml
+#
+# Filebeat runs as a DaemonSet on every node, collecting container logs and
+# forwarding them to Elasticsearch.
+# =============================================================================
+
+# ── DaemonSet Configuration ─────────────────────────────────────────────────
+daemonset:
+  enabled: true
+
+# ── Filebeat Configuration ──────────────────────────────────────────────────
+filebeatConfig:
+  filebeat.yml: |
+    # ── Autodiscover – Kubernetes provider ──────────────────────────────────
+    # Automatically discovers and configures log inputs for running pods.
+    filebeat.autodiscover:
+      providers:
+        - type: kubernetes
+          node: ${NODE_NAME}
+          hints.enabled: true
+          hints.default_config:
+            type: container
+            paths:
+              - /var/log/containers/*-${data.kubernetes.container.id}.log
+
+    # ── Processors ──────────────────────────────────────────────────────────
+    # Enrich log events with Kubernetes metadata (pod name, namespace, labels)
+    processors:
+      - add_kubernetes_metadata:
+          host: ${NODE_NAME}
+          matchers:
+            - logs_path:
+                logs_path: "/var/log/containers/"
+      - add_cloud_metadata: ~
+      - add_host_metadata: ~
+      - drop_event:
+          when:
+            or:
+              - equals:
+                  kubernetes.namespace: "kube-system"
+
+    # ── Output – Elasticsearch ──────────────────────────────────────────────
+    output.elasticsearch:
+      hosts: ["http://elasticsearch-master.logging:9200"]
+      index: "filebeat-%{[agent.version]}-%{+yyyy.MM.dd}"
+
+    # ── Index Lifecycle Management ──────────────────────────────────────────
+    setup.ilm.enabled: true
+    setup.ilm.rollover_alias: "filebeat"
+    setup.ilm.pattern: "{now/d}-000001"
+
+    # ── Template settings ───────────────────────────────────────────────────
+    setup.template.name: "filebeat"
+    setup.template.pattern: "filebeat-*"
+    setup.template.settings:
+      index.number_of_shards: 1
+      index.number_of_replicas: 0            # 0 replicas for dev (single-node ES)
+
+    # ── Kibana (for setting up dashboards) ──────────────────────────────────
+    setup.kibana:
+      host: "http://kibana-kibana.logging:5601"
+
+# ── Resource Requests & Limits ───────────────────────────────────────────────
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# ── Tolerations (run on all nodes, including master) ─────────────────────────
+tolerations:
+  - key: node-role.kubernetes.io/master
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/control-plane
+    effect: NoSchedule
+
+# ── Extra environment variables passed to the Filebeat container ─────────────
+extraEnvs:
+  - name: NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName

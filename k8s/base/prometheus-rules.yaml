@@ -1,0 +1,70 @@
+# =============================================================================
+# prometheus-rules.yaml – Alerting Rules for Pharmacy Platform
+# =============================================================================
+# Defines PrometheusRule resources that fire alerts when:
+#   1. Low-stock medicines are detected (business-level alert)
+#   2. A pod in pharmacy-app is crash-looping (>3 restarts/hour)
+#   3. HTTP 5xx error rate exceeds 5% of total traffic
+#
+# Prerequisites:
+#   - Prometheus Operator CRDs installed
+#   - Alertmanager configured for notification routing
+# =============================================================================
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: pharmacy-platform-alerts
+  namespace: monitoring
+  labels:
+    app: pharmacy-platform
+    app.kubernetes.io/part-of: pharmacy-platform
+    release: prometheus                    # Must match the Helm release label selector
+spec:
+  groups:
+    # ── Group 1 : Business / Inventory Alerts ────────────────────────────────
+    - name: pharmacy-inventory-alerts
+      rules:
+        - alert: LowStockAlert
+          expr: low_stock_medicines_count > 0
+          for: 5m
+          labels:
+            severity: warning
+            team: pharmacy-ops
+          annotations:
+            summary: "Low stock medicines detected"
+            description: >-
+              {{ $value }} medicine(s) are below the minimum stock threshold.
+              Check the pharmacy inventory and reorder as needed.
+
+    # ── Group 2 : Infrastructure Alerts ──────────────────────────────────────
+    - name: pharmacy-infrastructure-alerts
+      rules:
+        - alert: PodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total{namespace="pharmacy-app"}[1h]) > 3
+          for: 5m
+          labels:
+            severity: critical
+            team: platform-sre
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash-looping"
+            description: >-
+              Pod {{ $labels.pod }} in namespace {{ $labels.namespace }}
+              has restarted more than 3 times in the last hour.
+              Investigate container logs immediately.
+
+        - alert: HighErrorRate
+          expr: >-
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+            > 0.05
+          for: 5m
+          labels:
+            severity: critical
+            team: platform-sre
+          annotations:
+            summary: "High HTTP 5xx error rate (>5%)"
+            description: >-
+              The ratio of HTTP 5xx responses to total requests has exceeded
+              5% over the last 5 minutes. Current value: {{ $value | humanizePercentage }}.

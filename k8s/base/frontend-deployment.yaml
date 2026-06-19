@@ -1,0 +1,71 @@
+# =============================================================================
+# frontend-deployment.yaml – Pharmacy Frontend Deployment
+# =============================================================================
+# Runs 2 replicas of the React/Nginx frontend container.
+# Serves the static SPA and reverse-proxies API calls to the backend.
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  namespace: pharmacy-app
+  labels:
+    app: pharmacy-frontend
+    app.kubernetes.io/name: pharmacy-frontend
+    app.kubernetes.io/part-of: pharmacy-platform
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: pharmacy-frontend
+  template:
+    metadata:
+      labels:
+        app: pharmacy-frontend
+        app.kubernetes.io/name: pharmacy-frontend
+        app.kubernetes.io/part-of: pharmacy-platform
+    spec:
+      containers:
+        - name: pharmacy-frontend
+          # TODO: replace with your actual ECR image URI
+          image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/pharmacy-frontend:latest   # TODO: replace
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              protocol: TCP
+
+          # ── Liveness probe – restarts pod if Nginx stops responding ────────
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          # ── Readiness probe ────────────────────────────────────────────────
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          # ── Resource requests & limits ─────────────────────────────────────
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

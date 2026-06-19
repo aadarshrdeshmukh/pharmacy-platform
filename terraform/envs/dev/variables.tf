@@ -1,0 +1,29 @@
+variable "aws_region" {
+  description = "AWS region for all resources"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "project" {
+  description = "Project name used for resource naming and tagging"
+  type        = string
+  default     = "pharmacy-platform"
+}
+
+variable "environment" {
+  description = "Deployment environment"
+  type        = string
+  default     = "dev"
+}
+
+variable "db_password" {
+  description = "Master password for the RDS PostgreSQL database"
+  type        = string
+  sensitive   = true
+}
+
+variable "alert_email" {
+  description = "Email address for CloudWatch alarm notifications"
+  type        = string
+  default     = "admin@example.com"   # TODO: replace with your actual alert email
+}

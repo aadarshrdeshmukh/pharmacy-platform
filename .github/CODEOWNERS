@@ -1,0 +1,28 @@
+# ============================================================
+# CODEOWNERS — PharmaCare Platform
+# ============================================================
+# Each line maps a file pattern to one or more team owners.
+# The LAST matching pattern takes precedence.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# ============================================================
+
+# Default: pharmacy-admin owns everything not matched below
+*                       @pharmacy-admin
+
+# Backend service
+/app/backend/           @backend-team
+
+# Frontend application
+/app/frontend/          @frontend-team
+
+# Infrastructure as Code (Terraform)
+/terraform/             @infra-team
+
+# Kubernetes manifests
+/k8s/                   @infra-team
+
+# Jenkins CI/CD pipelines
+/jenkins/               @devops-team
+
+# GitHub config & workflows
+/.github/               @pharmacy-admin

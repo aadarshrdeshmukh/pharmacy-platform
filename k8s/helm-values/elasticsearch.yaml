@@ -1,0 +1,59 @@
+# =============================================================================
+# elasticsearch.yaml – Helm Values for Elasticsearch
+# =============================================================================
+# Install with:
+#   helm repo add elastic https://helm.elastic.co
+#   helm install elasticsearch elastic/elasticsearch \
+#     -n logging --create-namespace -f k8s/helm-values/elasticsearch.yaml
+# =============================================================================
+
+# ── Cluster Name ─────────────────────────────────────────────────────────────
+clusterName: "pharmacy-logging"
+
+# ── Replicas (1 for dev/staging, 3+ for production) ─────────────────────────
+replicas: 1
+
+# ── Minimum master nodes (should be ceil(replicas / 2) + 1 for production) ──
+minimumMasterNodes: 1
+
+# ── Resource Requests & Limits ───────────────────────────────────────────────
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+# ── JVM Heap Size (should be ~50% of memory limit) ──────────────────────────
+esJavaOpts: "-Xmx512m -Xms512m"
+
+# ── Persistent Volume ───────────────────────────────────────────────────────
+volumeClaimTemplate:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 30Gi
+
+# ── Security (disable for dev, enable for production) ────────────────────────
+# xpack.security.enabled: false
+protocol: http
+
+# ── Service ──────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 9200
+
+# ── Pod Disruption Budget ────────────────────────────────────────────────────
+maxUnavailable: 1
+
+# ── Readiness Probe ──────────────────────────────────────────────────────────
+readinessProbe:
+  httpGet:
+    path: /_cluster/health?local=true
+    port: 9200
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3

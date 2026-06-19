@@ -1,0 +1,175 @@
+// =============================================================================
+// Jenkinsfile – Pharmacy Inventory & Prescription Management Platform
+// =============================================================================
+// Declarative pipeline that:
+//   1. Checks out source code
+//   2. Installs dependencies & runs tests for backend and frontend
+//   3. Builds Docker images tagged with the short Git commit SHA
+//   4. Pushes images to Amazon ECR
+//   5. Deploys to Amazon EKS via Kustomize
+//   6. Runs a basic smoke test against the backend health endpoint
+// =============================================================================
+
+pipeline {
+    agent any
+
+    environment {
+        // ── AWS & ECR Configuration ──────────────────────────────────────────
+        AWS_CREDENTIALS_ID  = 'aws-credentials'                                                       // # TODO: replace with your Jenkins credential ID
+        ECR_REPO_BACKEND    = '123456789012.dkr.ecr.us-east-1.amazonaws.com/pharmacy-backend'          // # TODO: replace with your ECR backend repo URI
+        ECR_REPO_FRONTEND   = '123456789012.dkr.ecr.us-east-1.amazonaws.com/pharmacy-frontend'         // # TODO: replace with your ECR frontend repo URI
+
+        // ── EKS Configuration ────────────────────────────────────────────────
+        EKS_CLUSTER_NAME    = 'pharmacy-platform-dev'                                                  // # TODO: replace with your EKS cluster name
+        AWS_REGION          = 'us-east-1'                                                              // # TODO: replace with your AWS region
+
+        // ── Image Tag (first 7 chars of Git commit SHA, fallback to 'latest') ──
+        IMAGE_TAG           = "${env.GIT_COMMIT?.take(7) ?: 'latest'}"
+    }
+
+    stages {
+        // ─────────────────────────────────────────────────────────────────────
+        // Stage 1 – Checkout
+        // ─────────────────────────────────────────────────────────────────────
+        stage('Checkout') {
+            steps {
+                echo "Checking out source code …"
+                checkout scm
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Stage 2 – Install & Test Backend
+        // ─────────────────────────────────────────────────────────────────────
+        stage('Install & Test Backend') {
+            steps {
+                dir('app/backend') {
+                    echo "Installing backend dependencies …"
+                    sh 'npm ci'
+
+                    echo "Running backend tests …"
+                    sh 'npm test'
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Stage 3 – Install & Test Frontend
+        // ─────────────────────────────────────────────────────────────────────
+        stage('Install & Test Frontend') {
+            steps {
+                dir('app/frontend') {
+                    echo "Installing frontend dependencies …"
+                    sh 'npm ci'
+
+                    echo "Running frontend tests …"
+                    sh 'npm test'
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Stage 4 – Build Docker Images
+        // ─────────────────────────────────────────────────────────────────────
+        stage('Build Docker Images') {
+            steps {
+                echo "Building backend Docker image: ${ECR_REPO_BACKEND}:${IMAGE_TAG}"
+                sh "docker build -t ${ECR_REPO_BACKEND}:${IMAGE_TAG} app/backend"
+
+                echo "Building frontend Docker image: ${ECR_REPO_FRONTEND}:${IMAGE_TAG}"
+                sh "docker build -t ${ECR_REPO_FRONTEND}:${IMAGE_TAG} app/frontend"
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Stage 5 – Push to ECR
+        // ─────────────────────────────────────────────────────────────────────
+        stage('Push to ECR') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                                  credentialsId: "${AWS_CREDENTIALS_ID}"]]) {
+                    // Authenticate Docker with ECR
+                    sh """
+                        aws ecr get-login-password --region ${AWS_REGION} \
+                          | docker login --username AWS --password-stdin \
+                            ${ECR_REPO_BACKEND.split('/')[0]}
+                    """
+
+                    echo "Pushing backend image …"
+                    sh "docker push ${ECR_REPO_BACKEND}:${IMAGE_TAG}"
+
+                    echo "Pushing frontend image …"
+                    sh "docker push ${ECR_REPO_FRONTEND}:${IMAGE_TAG}"
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Stage 6 – Deploy to EKS
+        // ─────────────────────────────────────────────────────────────────────
+        stage('Deploy to EKS') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding',
+                                  credentialsId: "${AWS_CREDENTIALS_ID}"]]) {
+                    // Update kubeconfig so kubectl points at the target cluster
+                    sh """
+                        aws eks update-kubeconfig \
+                          --name ${EKS_CLUSTER_NAME} \
+                          --region ${AWS_REGION}
+                    """
+
+                    // Apply all manifests via Kustomize
+                    sh 'kubectl apply -k k8s/base'
+
+                    // Update container images to the freshly built tags
+                    sh """
+                        kubectl set image deployment/backend-deployment \
+                          pharmacy-backend=${ECR_REPO_BACKEND}:${IMAGE_TAG} \
+                          -n pharmacy-app
+                    """
+                    sh """
+                        kubectl set image deployment/frontend-deployment \
+                          pharmacy-frontend=${ECR_REPO_FRONTEND}:${IMAGE_TAG} \
+                          -n pharmacy-app
+                    """
+
+                    // Wait for rollouts to finish
+                    sh 'kubectl rollout status deployment/backend-deployment -n pharmacy-app --timeout=300s'
+                    sh 'kubectl rollout status deployment/frontend-deployment -n pharmacy-app --timeout=300s'
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Stage 7 – Smoke Test
+        // ─────────────────────────────────────────────────────────────────────
+        stage('Smoke Test') {
+            steps {
+                echo "Running smoke test against backend health endpoint …"
+                sh """
+                    BACKEND_URL=\$(kubectl get svc backend-service -n pharmacy-app \
+                      -o jsonpath='{.spec.clusterIP}')
+                    curl --fail --silent --show-error \
+                      http://\${BACKEND_URL}:3001/health \
+                      || (echo "Smoke test FAILED" && exit 1)
+                """
+                echo "Smoke test passed ✓"
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Post-build actions
+    // ─────────────────────────────────────────────────────────────────────────
+    post {
+        success {
+            echo '✅ Deployment successful – all stages passed.'
+        }
+        failure {
+            echo '❌ Pipeline failed – check the logs above for details.'
+        }
+        always {
+            echo "Pipeline finished. Image tag: ${IMAGE_TAG}"
+        }
+    }
+}

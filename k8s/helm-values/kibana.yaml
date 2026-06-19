@@ -1,0 +1,41 @@
+# =============================================================================
+# kibana.yaml – Helm Values for Kibana
+# =============================================================================
+# Install with:
+#   helm repo add elastic https://helm.elastic.co
+#   helm install kibana elastic/kibana \
+#     -n logging --create-namespace -f k8s/helm-values/kibana.yaml
+# =============================================================================
+
+# ── Replicas ─────────────────────────────────────────────────────────────────
+replicas: 1
+
+# ── Elasticsearch connection ─────────────────────────────────────────────────
+# Points to the Elasticsearch service deployed in the same namespace.
+elasticsearchHosts: "http://elasticsearch-master.logging:9200"
+
+# ── Resource Requests & Limits ───────────────────────────────────────────────
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# ── Health Check ─────────────────────────────────────────────────────────────
+healthCheckPath: "/api/status"
+
+# ── Service ──────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 5601
+
+# ── Server Configuration ────────────────────────────────────────────────────
+kibanaConfig:
+  kibana.yml: |
+    server.name: kibana
+    server.host: "0.0.0.0"
+    elasticsearch.hosts: ["http://elasticsearch-master.logging:9200"]
+    # Default index pattern for Filebeat logs
+    kibana.defaultAppId: "discover"

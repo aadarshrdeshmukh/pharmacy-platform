@@ -1,0 +1,160 @@
+# =============================================================================
+# networkpolicy.yaml – Kubernetes Network Policies
+# =============================================================================
+# Defines network segmentation rules for the pharmacy-app namespace.
+# Implements a zero-trust model: deny all ingress by default, then allow
+# only the specific traffic flows required by the application.
+#
+# Traffic flow:
+#   Internet → ALB Ingress → Frontend (port 80)
+#                             Frontend → Backend (port 3001)
+#                                        Backend → RDS (port 3306)
+#   Prometheus (monitoring) → Backend (port 3001) [metrics scraping]
+# =============================================================================
+
+---
+# -----------------------------------------------------------------------------
+# 1. Default Deny All Ingress
+# -----------------------------------------------------------------------------
+# Baseline policy that blocks all inbound traffic to every pod in the
+# pharmacy-app namespace. Subsequent policies whitelist specific flows.
+# -----------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: pharmacy-app
+  labels:
+    app.kubernetes.io/part-of: pharmacy-platform
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector: {}          # Matches ALL pods in the namespace
+  policyTypes:
+    - Ingress              # Deny all ingress; egress remains unrestricted
+
+---
+# -----------------------------------------------------------------------------
+# 2. Allow ALB Ingress → Frontend
+# -----------------------------------------------------------------------------
+# Permits the AWS ALB Ingress Controller to route external traffic to
+# frontend pods on port 80.
+# -----------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-from-alb
+  namespace: pharmacy-app
+  labels:
+    app.kubernetes.io/part-of: pharmacy-platform
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: pharmacy-frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/name: aws-load-balancer-controller
+      ports:
+        - protocol: TCP
+          port: 80
+
+---
+# -----------------------------------------------------------------------------
+# 3. Allow Frontend → Backend (port 3001)
+# -----------------------------------------------------------------------------
+# Backend pods accept connections ONLY from frontend pods within the same
+# namespace, on the API port 3001.
+# -----------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-from-frontend
+  namespace: pharmacy-app
+  labels:
+    app.kubernetes.io/part-of: pharmacy-platform
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: pharmacy-backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: pharmacy-frontend
+      ports:
+        - protocol: TCP
+          port: 3001
+
+---
+# -----------------------------------------------------------------------------
+# 4. Allow Backend → RDS Database (egress port 3306)
+# -----------------------------------------------------------------------------
+# Restricts backend egress so that database connections are only allowed
+# on the MySQL/Aurora port 3306. DNS egress (port 53) is also permitted
+# so that the backend can resolve the RDS endpoint hostname.
+# -----------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-rds
+  namespace: pharmacy-app
+  labels:
+    app.kubernetes.io/part-of: pharmacy-platform
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: pharmacy-backend
+  policyTypes:
+    - Egress
+  egress:
+    # Allow MySQL/Aurora connections to RDS
+    - ports:
+        - protocol: TCP
+          port: 3306
+    # Allow DNS resolution (required to resolve RDS endpoint)
+    - ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+
+---
+# -----------------------------------------------------------------------------
+# 5. Allow Prometheus → Backend (metrics scraping, port 3001)
+# -----------------------------------------------------------------------------
+# Permits Prometheus in the monitoring namespace to scrape metrics from
+# backend pods on port 3001.
+# -----------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-from-prometheus
+  namespace: pharmacy-app
+  labels:
+    app.kubernetes.io/part-of: pharmacy-platform
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: pharmacy-backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 3001
