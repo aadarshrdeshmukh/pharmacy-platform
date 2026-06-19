@@ -16,8 +16,10 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const response = await api.get('/api/dashboard/summary');
-      setSummary(response.data.summary || response.data);
-      setRecentTransactions(response.data.recentTransactions || []);
+      // API returns { data: { totalMedicines, lowStockCount, ..., recentTransactions } }
+      const dashData = response.data.data || response.data.summary || response.data;
+      setSummary(dashData);
+      setRecentTransactions(dashData.recentTransactions || []);
     } catch (err) {
       setError('Failed to load dashboard data.');
       // Provide fallback data for demo
@@ -91,18 +93,22 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {recentTransactions.map((tx, index) => (
-                  <tr key={index}>
-                    <td>{tx.medicineName || tx.name}</td>
-                    <td>
-                      <span className={`status-dot status-dot--${tx.type === 'IN' ? 'fulfilled' : 'pending'}`}>
-                        {tx.type}
-                      </span>
-                    </td>
-                    <td className="data-value">{tx.quantity}</td>
-                    <td>{new Date(tx.date || tx.createdAt).toLocaleDateString()}</td>
-                  </tr>
-                ))}
+                {recentTransactions.map((tx, index) => {
+                  const txType = tx.type || (tx.change_qty > 0 ? 'IN' : 'OUT');
+                  const txQty = tx.quantity || Math.abs(tx.change_qty);
+                  return (
+                    <tr key={tx.id || index}>
+                      <td>{tx.medicine_name || tx.medicineName || tx.name}</td>
+                      <td>
+                        <span className={`status-dot status-dot--${txType === 'IN' ? 'fulfilled' : 'pending'}`}>
+                          {txType}
+                        </span>
+                      </td>
+                      <td className="data-value">{txQty}</td>
+                      <td>{new Date(tx.created_at || tx.date || tx.createdAt).toLocaleDateString()}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

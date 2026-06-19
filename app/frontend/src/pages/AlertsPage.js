@@ -16,8 +16,10 @@ const AlertsPage = () => {
     try {
       setLoading(true);
       const response = await api.get('/api/medicines/alerts');
-      const data = response.data.alerts || response.data || [];
+      // API returns { alerts: [...], count: N }
+      const data = response.data.alerts || response.data.data || response.data || [];
       setAlerts(Array.isArray(data) ? data : []);
+      setError('');
     } catch (err) {
       setError('Failed to fetch alerts.');
     } finally {
@@ -27,8 +29,8 @@ const AlertsPage = () => {
 
   const getUrgency = (medicine) => {
     if (medicine.quantity === 0) return 'critical';
-    if (medicine.quantity <= (medicine.reorderLevel || 10) * 0.5) return 'critical';
-    if (medicine.quantity <= (medicine.reorderLevel || 10)) return 'warning';
+    if (medicine.quantity <= (medicine.reorder_threshold || 10) * 0.5) return 'critical';
+    if (medicine.quantity <= (medicine.reorder_threshold || 10)) return 'warning';
     return 'info';
   };
 
@@ -101,7 +103,7 @@ const AlertsPage = () => {
           <p>{filterType === 'all' ? 'All stock levels are healthy.' : `No ${filterType} alerts found.`}</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {filteredAlerts.map((medicine, index) => {
             const urgency = getUrgency(medicine);
             return (
@@ -112,13 +114,13 @@ const AlertsPage = () => {
                 <div className="alert-details" style={{ flex: 1 }}>
                   <h3>{medicine.name}</h3>
                   <div className="alert-meta">
-                    <span>Stock: <strong className={urgency === 'critical' ? 'text-danger' : 'text-warning'}>{medicine.quantity}</strong> / Reorder at {medicine.reorderLevel || 10}</span>
-                    <span>Category: {medicine.category || 'N/A'}</span>
-                    {medicine.manufacturer && <span>Mfr: {medicine.manufacturer}</span>}
+                    <span>Stock: <strong className={urgency === 'critical' ? 'text-danger' : 'text-warning'}>{medicine.quantity}</strong> / Reorder at {medicine.reorder_threshold || 10}</span>
+                    <span>SKU: {medicine.sku || 'N/A'}</span>
+                    {medicine.supplier_name && <span>Supplier: {medicine.supplier_name}</span>}
                   </div>
                 </div>
                 <div>
-                  <span className={`status-dot status-dot--${urgency}`}>
+                  <span className={`status-dot status-dot--${urgency === 'critical' ? 'cancelled' : 'pending'}`}>
                     {getUrgencyText(urgency)}
                   </span>
                 </div>

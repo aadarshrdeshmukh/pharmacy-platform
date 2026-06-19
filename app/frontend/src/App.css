@@ -119,6 +119,15 @@ a:hover {
   line-height: 1;
 }
 
+/* Inside tables, data-value should use normal table font sizing */
+tbody td.data-value,
+tbody td .data-value {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
 .app-layout {
   display: grid;
   grid-template-columns: 220px 1fr;

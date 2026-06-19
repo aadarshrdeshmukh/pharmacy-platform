@@ -39,19 +39,19 @@ exports.seed = async function (knex) {
   // ── Suppliers ────────────────────────────────────────────
   await knex('suppliers').insert([
     {
-      name: 'PharmaCorp International',
-      contact_email: 'orders@pharmacorp.com',
-      phone: '+1-555-0101',
+      name: 'Cipla Ltd.',
+      contact_email: 'orders@cipla.com',
+      phone: '+91-22-2482-6000',
     },
     {
-      name: 'MedSupply Direct',
-      contact_email: 'sales@medsupply.com',
-      phone: '+1-555-0202',
+      name: 'Sun Pharmaceutical',
+      contact_email: 'supply@sunpharma.com',
+      phone: '+91-22-4324-4324',
     },
     {
-      name: 'GlobalHealth Distributors',
-      contact_email: 'supply@globalhealth.com',
-      phone: '+1-555-0303',
+      name: 'Dr. Reddy\'s Laboratories',
+      contact_email: 'sales@drreddys.com',
+      phone: '+91-40-4900-2900',
     },
   ]);
 
@@ -67,7 +67,7 @@ exports.seed = async function (knex) {
       expiry_date: '2026-12-31',
       quantity: 250,
       reorder_threshold: 50,
-      unit_price: 0.45,
+      unit_price: 12.50,
       supplier_id: supplier1.id,
     },
     {
@@ -77,7 +77,7 @@ exports.seed = async function (knex) {
       expiry_date: '2027-06-30',
       quantity: 500,
       reorder_threshold: 100,
-      unit_price: 0.12,
+      unit_price: 5.75,
       supplier_id: supplier1.id,
     },
     {
@@ -87,7 +87,7 @@ exports.seed = async function (knex) {
       expiry_date: '2027-03-15',
       quantity: 8,
       reorder_threshold: 100,
-      unit_price: 0.08,
+      unit_price: 2.50,
       supplier_id: supplier2.id,
     },
     {
@@ -97,7 +97,7 @@ exports.seed = async function (knex) {
       expiry_date: '2026-09-30',
       quantity: 300,
       reorder_threshold: 60,
-      unit_price: 0.35,
+      unit_price: 8.40,
       supplier_id: supplier2.id,
     },
     {
@@ -107,7 +107,7 @@ exports.seed = async function (knex) {
       expiry_date: '2026-11-15',
       quantity: 5,
       reorder_threshold: 40,
-      unit_price: 0.55,
+      unit_price: 14.00,
       supplier_id: supplier3.id,
     },
     {
@@ -117,7 +117,7 @@ exports.seed = async function (knex) {
       expiry_date: '2027-01-20',
       quantity: 180,
       reorder_threshold: 30,
-      unit_price: 0.60,
+      unit_price: 18.75,
       supplier_id: supplier1.id,
     },
     {
@@ -127,7 +127,7 @@ exports.seed = async function (knex) {
       expiry_date: '2027-08-10',
       quantity: 3,
       reorder_threshold: 25,
-      unit_price: 0.40,
+      unit_price: 6.80,
       supplier_id: supplier3.id,
     },
     {
@@ -137,7 +137,7 @@ exports.seed = async function (knex) {
       expiry_date: '2027-04-25',
       quantity: 200,
       reorder_threshold: 40,
-      unit_price: 0.30,
+      unit_price: 9.50,
       supplier_id: supplier2.id,
     },
     {
@@ -147,7 +147,7 @@ exports.seed = async function (knex) {
       expiry_date: '2026-10-05',
       quantity: 7,
       reorder_threshold: 20,
-      unit_price: 1.20,
+      unit_price: 32.00,
       supplier_id: supplier1.id,
     },
     {
@@ -157,7 +157,7 @@ exports.seed = async function (knex) {
       expiry_date: '2027-12-31',
       quantity: 400,
       reorder_threshold: 50,
-      unit_price: 0.15,
+      unit_price: 3.25,
       supplier_id: supplier3.id,
     },
     {
@@ -167,7 +167,7 @@ exports.seed = async function (knex) {
       expiry_date: '2027-05-18',
       quantity: 150,
       reorder_threshold: 35,
-      unit_price: 0.48,
+      unit_price: 11.60,
       supplier_id: supplier2.id,
     },
     {
@@ -177,7 +177,7 @@ exports.seed = async function (knex) {
       expiry_date: '2026-08-20',
       quantity: 2,
       reorder_threshold: 15,
-      unit_price: 3.50,
+      unit_price: 185.00,
       supplier_id: supplier3.id,
     },
   ]);

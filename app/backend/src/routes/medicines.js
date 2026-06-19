@@ -67,6 +67,23 @@ router.get('/low-stock', async (_req, res) => {
   }
 });
 
+// ── GET /api/medicines/alerts ────────────────────────────────
+// Alias for low-stock used by the Alerts page
+router.get('/alerts', async (_req, res) => {
+  try {
+    const medicines = await db('medicines')
+      .leftJoin('suppliers', 'medicines.supplier_id', 'suppliers.id')
+      .select('medicines.*', 'suppliers.name as supplier_name')
+      .whereRaw('medicines.quantity <= medicines.reorder_threshold')
+      .orderBy('medicines.quantity', 'asc');
+
+    res.json({ alerts: medicines, count: medicines.length });
+  } catch (err) {
+    logger.error({ err: err.message }, 'Failed to fetch alerts');
+    res.status(500).json({ error: 'Failed to fetch alerts' });
+  }
+});
+
 // ── POST /api/medicines ──────────────────────────────────────
 router.post(
   '/',

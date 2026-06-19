@@ -11,9 +11,9 @@ const InventoryPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState(null);
   const [formData, setFormData] = useState({
-    name: '', genericName: '', category: '', manufacturer: '',
-    batchNumber: '', quantity: '', unitPrice: '', expiryDate: '',
-    reorderLevel: '', description: ''
+    name: '', sku: '', batch_no: '',
+    quantity: '', unit_price: '', expiry_date: '',
+    reorder_threshold: '', supplier_id: ''
   });
 
   const fetchMedicines = useCallback(async () => {
@@ -21,16 +21,16 @@ const InventoryPage = () => {
       setLoading(true);
       const params = {};
       if (searchTerm) params.search = searchTerm;
-      if (filterCategory) params.category = filterCategory;
       const response = await api.get('/api/medicines', { params });
-      const data = response.data.medicines || response.data || [];
+      // API returns { data: [...], count: N }
+      const data = response.data.data || response.data.medicines || response.data || [];
       setMedicines(Array.isArray(data) ? data : []);
     } catch (err) {
       setError('Failed to fetch medicines.');
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, filterCategory]);
+  }, [searchTerm]);
 
   useEffect(() => {
     fetchMedicines();
@@ -58,9 +58,9 @@ const InventoryPage = () => {
 
   const resetForm = () => {
     setFormData({
-      name: '', genericName: '', category: '', manufacturer: '',
-      batchNumber: '', quantity: '', unitPrice: '', expiryDate: '',
-      reorderLevel: '', description: ''
+      name: '', sku: '', batch_no: '',
+      quantity: '', unit_price: '', expiry_date: '',
+      reorder_threshold: '', supplier_id: ''
     });
     setEditingMedicine(null);
   };
@@ -74,15 +74,13 @@ const InventoryPage = () => {
     setEditingMedicine(medicine);
     setFormData({
       name: medicine.name || '',
-      genericName: medicine.genericName || '',
-      category: medicine.category || '',
-      manufacturer: medicine.manufacturer || '',
-      batchNumber: medicine.batchNumber || '',
+      sku: medicine.sku || '',
+      batch_no: medicine.batch_no || '',
       quantity: medicine.quantity || '',
-      unitPrice: medicine.unitPrice || '',
-      expiryDate: medicine.expiryDate ? medicine.expiryDate.split('T')[0] : '',
-      reorderLevel: medicine.reorderLevel || '',
-      description: medicine.description || ''
+      unit_price: medicine.unit_price || '',
+      expiry_date: medicine.expiry_date ? medicine.expiry_date.split('T')[0] : '',
+      reorder_threshold: medicine.reorder_threshold || '',
+      supplier_id: medicine.supplier_id || ''
     });
     setShowModal(true);
   };
@@ -94,11 +92,17 @@ const InventoryPage = () => {
 
     try {
       const payload = {
-        ...formData,
+        name: formData.name,
+        sku: formData.sku,
+        batch_no: formData.batch_no,
         quantity: parseInt(formData.quantity, 10),
-        unitPrice: parseFloat(formData.unitPrice),
-        reorderLevel: parseInt(formData.reorderLevel, 10) || 10
+        unit_price: parseFloat(formData.unit_price),
+        expiry_date: formData.expiry_date,
+        reorder_threshold: parseInt(formData.reorder_threshold, 10) || 10
       };
+      if (formData.supplier_id) {
+        payload.supplier_id = parseInt(formData.supplier_id, 10);
+      }
 
       if (editingMedicine) {
         await api.put(`/api/medicines/${editingMedicine.id}`, payload);
@@ -112,7 +116,7 @@ const InventoryPage = () => {
       resetForm();
       fetchMedicines();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save medicine.');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to save medicine.');
     }
   };
 
@@ -124,7 +128,7 @@ const InventoryPage = () => {
       setSuccess(`"${name}" deleted successfully.`);
       fetchMedicines();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete medicine.');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to delete medicine.');
     }
   };
 
@@ -132,7 +136,7 @@ const InventoryPage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const categories = [...new Set(medicines.map(m => m.category).filter(Boolean))];
+  const isLowStock = (med) => med.quantity <= (med.reorder_threshold || 10);
 
   return (
     <div className="page-container">
@@ -153,16 +157,6 @@ const InventoryPage = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <select
-          className="form-select"
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-        >
-          <option value="">All Categories</option>
-          {categories.map(cat => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
       </div>
 
       {loading ? (
@@ -182,11 +176,12 @@ const InventoryPage = () => {
             <thead>
               <tr>
                 <th>NAME</th>
-                <th>CATEGORY</th>
+                <th>SKU</th>
                 <th>BATCH</th>
                 <th>QUANTITY</th>
                 <th>UNIT PRICE</th>
                 <th>EXPIRY DATE</th>
+                <th>SUPPLIER</th>
                 <th>ACTIONS</th>
               </tr>
             </thead>
@@ -194,24 +189,24 @@ const InventoryPage = () => {
               {medicines.map((med) => (
                 <tr
                   key={med.id}
-                  className={med.quantity <= (med.reorderLevel || 10) ? 'low-stock-row' : ''}
+                  className={isLowStock(med) ? 'low-stock-row' : ''}
                 >
                   <td>
                     <div style={{ fontWeight: 500 }}>{med.name}</div>
-                    {med.genericName && (
-                      <div className="text-muted" style={{ fontSize: '0.75rem' }}>{med.genericName}</div>
-                    )}
                   </td>
-                  <td>{med.category || '\u2014'}</td>
-                  <td><code style={{ fontSize: '0.75rem' }}>{med.batchNumber || '\u2014'}</code></td>
+                  <td><code style={{ fontSize: '0.75rem' }}>{med.sku || '\u2014'}</code></td>
+                  <td><code style={{ fontSize: '0.75rem' }}>{med.batch_no || '\u2014'}</code></td>
                   <td>
-                    <span className="data-value">{med.quantity}</span>
+                    <span className={`data-value ${isLowStock(med) ? 'low-stock' : ''}`}>
+                      {med.quantity}
+                    </span>
                   </td>
-                  <td className="data-value">${parseFloat(med.unitPrice || 0).toFixed(2)}</td>
-                  <td className={getExpiryClass(med.expiryDate)}>
-                    {med.expiryDate ? new Date(med.expiryDate).toLocaleDateString() : '\u2014'}
-                    <span className="text-muted" style={{ fontSize: '0.7rem' }}>{getExpiryLabel(med.expiryDate)}</span>
+                  <td className="data-value">₹{parseFloat(med.unit_price || 0).toFixed(2)}</td>
+                  <td className={getExpiryClass(med.expiry_date)}>
+                    {med.expiry_date ? new Date(med.expiry_date).toLocaleDateString() : '\u2014'}
+                    <span className="text-muted" style={{ fontSize: '0.7rem' }}>{getExpiryLabel(med.expiry_date)}</span>
                   </td>
+                  <td>{med.supplier_name || '\u2014'}</td>
                   <td>
                     <div className="flex gap-sm">
                       <button className="btn btn-secondary btn-sm" onClick={() => openEditModal(med)}>Edit</button>
@@ -239,24 +234,14 @@ const InventoryPage = () => {
                   <input className="form-input" name="name" value={formData.name} onChange={handleChange} required />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">GENERIC NAME</label>
-                  <input className="form-input" name="genericName" value={formData.genericName} onChange={handleChange} />
+                  <label className="form-label">SKU *</label>
+                  <input className="form-input" name="sku" value={formData.sku} onChange={handleChange} required />
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">CATEGORY</label>
-                  <input className="form-input" name="category" value={formData.category} onChange={handleChange} placeholder="e.g., Analgesic, Antibiotic" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">MANUFACTURER</label>
-                  <input className="form-input" name="manufacturer" value={formData.manufacturer} onChange={handleChange} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">BATCH NUMBER</label>
-                  <input className="form-input" name="batchNumber" value={formData.batchNumber} onChange={handleChange} />
+                  <label className="form-label">BATCH NUMBER *</label>
+                  <input className="form-input" name="batch_no" value={formData.batch_no} onChange={handleChange} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label">QUANTITY *</label>
@@ -265,21 +250,17 @@ const InventoryPage = () => {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">UNIT PRICE ($) *</label>
-                  <input className="form-input" type="number" step="0.01" name="unitPrice" value={formData.unitPrice} onChange={handleChange} required min="0" />
+                  <label className="form-label">UNIT PRICE (₹) *</label>
+                  <input className="form-input" type="number" step="0.01" name="unit_price" value={formData.unit_price} onChange={handleChange} required min="0" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">EXPIRY DATE *</label>
-                  <input className="form-input" type="date" name="expiryDate" value={formData.expiryDate} onChange={handleChange} required />
+                  <input className="form-input" type="date" name="expiry_date" value={formData.expiry_date} onChange={handleChange} required />
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">REORDER LEVEL</label>
-                <input className="form-input" type="number" name="reorderLevel" value={formData.reorderLevel} onChange={handleChange} placeholder="Default: 10" min="0" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">DESCRIPTION</label>
-                <textarea className="form-input" name="description" value={formData.description} onChange={handleChange} rows="3" style={{ resize: 'vertical' }} />
+                <label className="form-label">REORDER THRESHOLD</label>
+                <input className="form-input" type="number" name="reorder_threshold" value={formData.reorder_threshold} onChange={handleChange} placeholder="Default: 10" min="0" />
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>

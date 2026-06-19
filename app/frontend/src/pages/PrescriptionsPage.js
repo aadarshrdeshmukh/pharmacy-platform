@@ -10,10 +10,7 @@ const PrescriptionsPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
     patientName: '',
-    patientAge: '',
-    patientPhone: '',
     doctorName: '',
-    notes: '',
     items: [{ medicineId: '', quantity: 1 }]
   });
 
@@ -26,7 +23,8 @@ const PrescriptionsPage = () => {
     try {
       setLoading(true);
       const response = await api.get('/api/prescriptions');
-      const rxData = response.data.prescriptions || response.data || [];
+      // API returns { data: [...], count: N }
+      const rxData = response.data.data || response.data.prescriptions || response.data || [];
       setPrescriptions(Array.isArray(rxData) ? rxData : []);
     } catch (err) {
       setError('Failed to fetch prescriptions.');
@@ -38,7 +36,8 @@ const PrescriptionsPage = () => {
   const fetchMedicines = async () => {
     try {
       const response = await api.get('/api/medicines');
-      const medData = response.data.medicines || response.data || [];
+      // API returns { data: [...], count: N }
+      const medData = response.data.data || response.data.medicines || response.data || [];
       setMedicines(Array.isArray(medData) ? medData : []);
     } catch (err) {
       console.error('Failed to fetch medicines for dropdown');
@@ -74,11 +73,8 @@ const PrescriptionsPage = () => {
       const payload = {
         patient_name: formData.patientName,
         doctor_name: formData.doctorName,
-        patient_age: parseInt(formData.patientAge, 10),
-        patient_phone: formData.patientPhone,
-        notes: formData.notes,
         items: formData.items.map(item => ({
-          medicine_id: item.medicineId,
+          medicine_id: parseInt(item.medicineId, 10),
           quantity: item.quantity
         }))
       };
@@ -86,12 +82,12 @@ const PrescriptionsPage = () => {
       setSuccess('Prescription created successfully.');
       setShowModal(false);
       setFormData({
-        patientName: '', patientAge: '', patientPhone: '',
-        doctorName: '', notes: '', items: [{ medicineId: '', quantity: 1 }]
+        patientName: '', doctorName: '',
+        items: [{ medicineId: '', quantity: 1 }]
       });
       fetchPrescriptions();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create prescription.');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to create prescription.');
     }
   };
 
@@ -101,7 +97,7 @@ const PrescriptionsPage = () => {
       setSuccess(`Prescription ${newStatus} successfully.`);
       fetchPrescriptions();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update prescription status.');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to update prescription status.');
     }
   };
 
@@ -151,12 +147,9 @@ const PrescriptionsPage = () => {
                 <tr key={rx.id}>
                   <td><code style={{ fontSize: '0.75rem' }}>#{rx.id}</code></td>
                   <td>
-                    <div style={{ fontWeight: 500 }}>{rx.patient_name || rx.patientName}</div>
-                    {(rx.patient_phone || rx.patientPhone) && (
-                      <div className="text-muted" style={{ fontSize: '0.75rem' }}>{rx.patient_phone || rx.patientPhone}</div>
-                    )}
+                    <div style={{ fontWeight: 500 }}>{rx.patient_name}</div>
                   </td>
-                  <td>{rx.doctor_name || rx.doctorName || '\u2014'}</td>
+                  <td>{rx.doctor_name || '\u2014'}</td>
                   <td className="data-value">
                     {rx.items?.length || 0} item{(rx.items?.length || 0) !== 1 ? 's' : ''}
                   </td>
@@ -165,7 +158,7 @@ const PrescriptionsPage = () => {
                       {rx.status || 'pending'}
                     </span>
                   </td>
-                  <td>{new Date(rx.created_at || rx.createdAt).toLocaleDateString()}</td>
+                  <td>{new Date(rx.created_at).toLocaleDateString()}</td>
                   <td>
                     <div className="flex gap-sm">
                       {rx.status === 'pending' && (
@@ -204,16 +197,6 @@ const PrescriptionsPage = () => {
                 <div className="form-group">
                   <label className="form-label">PATIENT NAME *</label>
                   <input className="form-input" name="patientName" value={formData.patientName} onChange={handleChange} required />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">PATIENT AGE</label>
-                  <input className="form-input" type="number" name="patientAge" value={formData.patientAge} onChange={handleChange} min="0" max="150" />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">PATIENT PHONE</label>
-                  <input className="form-input" name="patientPhone" value={formData.patientPhone} onChange={handleChange} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">DOCTOR NAME *</label>
@@ -259,11 +242,6 @@ const PrescriptionsPage = () => {
                     )}
                   </div>
                 ))}
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">NOTES</label>
-                <textarea className="form-input" name="notes" value={formData.notes} onChange={handleChange} rows="3" style={{ resize: 'vertical' }} />
               </div>
 
               <div className="modal-footer">
