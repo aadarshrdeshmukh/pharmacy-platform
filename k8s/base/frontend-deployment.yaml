@@ -34,9 +34,9 @@ spec:
     spec:
       containers:
         - name: pharmacy-frontend
-          # TODO: replace with your actual ECR image URI
-          image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/pharmacy-frontend:latest   # TODO: replace
-          imagePullPolicy: Always
+          # For local Minikube: use local image. For AWS EKS: replace with ECR URI
+          image: pharmacy-frontend:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 80
               protocol: TCP

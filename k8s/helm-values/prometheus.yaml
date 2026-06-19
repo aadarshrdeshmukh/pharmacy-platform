@@ -26,16 +26,7 @@ grafana:
       folder: /tmp/dashboards
       searchNamespace: monitoring
 
-  # Default data source (auto-configured by the chart)
-  datasources:
-    datasources.yaml:
-      apiVersion: 1
-      datasources:
-        - name: Prometheus
-          type: prometheus
-          url: http://prometheus-kube-prometheus-prometheus.monitoring:9090
-          access: proxy
-          isDefault: true
+  # Datasource auto-configured by the chart (Prometheus as default)
 
 # ── Prometheus Server Configuration ──────────────────────────────────────────
 prometheus:

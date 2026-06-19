@@ -19,14 +19,14 @@ minimumMasterNodes: 1
 # ── Resource Requests & Limits ───────────────────────────────────────────────
 resources:
   requests:
-    cpu: 250m
-    memory: 512Mi
+    cpu: 100m
+    memory: 256Mi
   limits:
-    cpu: 1000m
-    memory: 1Gi
+    cpu: 500m
+    memory: 512Mi
 
 # ── JVM Heap Size (should be ~50% of memory limit) ──────────────────────────
-esJavaOpts: "-Xmx512m -Xms512m"
+esJavaOpts: "-Xmx256m -Xms256m"
 
 # ── Persistent Volume ───────────────────────────────────────────────────────
 volumeClaimTemplate:
@@ -48,12 +48,4 @@ service:
 # ── Pod Disruption Budget ────────────────────────────────────────────────────
 maxUnavailable: 1
 
-# ── Readiness Probe ──────────────────────────────────────────────────────────
-readinessProbe:
-  httpGet:
-    path: /_cluster/health?local=true
-    port: 9200
-  initialDelaySeconds: 30
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 3
+# Readiness probe handled by chart defaults
