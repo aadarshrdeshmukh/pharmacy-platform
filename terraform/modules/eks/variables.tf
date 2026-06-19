@@ -11,7 +11,7 @@ variable "environment" {
 variable "kubernetes_version" {
   description = "Kubernetes version for the EKS cluster"
   type        = string
-  default     = "1.29"
+  default     = "1.30"
 }
 
 variable "public_subnet_ids" {
@@ -27,7 +27,7 @@ variable "private_subnet_ids" {
 variable "node_instance_types" {
   description = "EC2 instance types for the managed node group"
   type        = list(string)
-  default     = ["t3.medium"]
+  default     = ["t3.micro"]
 }
 
 variable "node_desired_size" {

@@ -63,7 +63,7 @@ variable "db_password" {
 variable "backup_retention_period" {
   description = "Number of days to retain automated backups"
   type        = number
-  default     = 7
+  default     = 1
 }
 
 variable "common_tags" {
