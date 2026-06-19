@@ -3,44 +3,41 @@
  * run without a real PostgreSQL instance.
  */
 
+// Create a single shared query builder so mocks persist between calls
+const createQueryBuilder = () => {
+  const builder = {
+    select: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    whereNot: jest.fn().mockReturnThis(),
+    whereIn: jest.fn().mockReturnThis(),
+    whereRaw: jest.fn().mockReturnThis(),
+    whereILike: jest.fn().mockReturnThis(),
+    orWhereILike: jest.fn().mockReturnThis(),
+    leftJoin: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockResolvedValue([]),
+    limit: jest.fn().mockReturnThis(),
+    count: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    del: jest.fn().mockResolvedValue(1),
+    first: jest.fn().mockResolvedValue(null),
+    returning: jest.fn().mockResolvedValue([]),
+    then: jest.fn((resolve) => resolve([])),
+  };
+  return builder;
+};
+
+// Single shared builder instance
+const sharedBuilder = createQueryBuilder();
+
 // Mock the knex db module
 jest.mock('../src/db', () => {
-  const knex = jest.fn();
-
-  // Helper to create a chainable query builder mock
-  const createQueryBuilder = () => {
-    const builder = {
-      select: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      whereNot: jest.fn().mockReturnThis(),
-      whereIn: jest.fn().mockReturnThis(),
-      whereRaw: jest.fn().mockReturnThis(),
-      whereILike: jest.fn().mockReturnThis(),
-      orWhereILike: jest.fn().mockReturnThis(),
-      leftJoin: jest.fn().mockReturnThis(),
-      orderBy: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      count: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      del: jest.fn().mockResolvedValue(1),
-      first: jest.fn().mockResolvedValue(null),
-      returning: jest.fn().mockResolvedValue([]),
-      then: jest.fn(),
-    };
-    return builder;
-  };
-
-  // Make knex callable as a function (table name) that returns a query builder
-  const mockDb = jest.fn(() => createQueryBuilder());
+  const mockDb = jest.fn(() => sharedBuilder);
   mockDb.raw = jest.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] });
   mockDb.fn = { now: jest.fn().mockReturnValue('NOW()') };
-  mockDb.transaction = jest.fn().mockResolvedValue({
-    commit: jest.fn(),
-    rollback: jest.fn(),
-    ...createQueryBuilder(),
+  mockDb.transaction = jest.fn((callback) => {
+    return callback(mockDb);
   });
-
   return mockDb;
 });
 
@@ -71,3 +68,6 @@ jest.mock('prom-client', () => {
 // Suppress pino logging during tests
 process.env.LOG_LEVEL = 'silent';
 process.env.JWT_SECRET = 'test-jwt-secret-key';
+
+// Export shared builder for test files
+module.exports = { sharedBuilder };

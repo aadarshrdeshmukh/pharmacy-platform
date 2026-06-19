@@ -2,10 +2,9 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
 // Setup mocks before requiring the app
-require('./setup');
+const { sharedBuilder } = require('./setup');
 
 const app = require('../src/index');
-const db = require('../src/db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key';
 
@@ -24,6 +23,10 @@ function generateTestToken(overrides = {}) {
 describe('Medicines API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset shared builder defaults
+    sharedBuilder.orderBy.mockResolvedValue([]);
+    sharedBuilder.first.mockResolvedValue(null);
+    sharedBuilder.returning.mockResolvedValue([]);
   });
 
   // ── GET /api/medicines ───────────────────────────────────
@@ -34,9 +37,7 @@ describe('Medicines API', () => {
         { id: 2, name: 'Ibuprofen 200mg', sku: 'IBU-200', quantity: 500 },
       ];
 
-      // Setup the mock chain to resolve with medicines
-      const queryBuilder = db();
-      queryBuilder.orderBy.mockResolvedValue(mockMedicines);
+      sharedBuilder.orderBy.mockResolvedValue(mockMedicines);
 
       const res = await request(app).get('/api/medicines');
 
@@ -87,10 +88,8 @@ describe('Medicines API', () => {
         unit_price: '1.50',
       };
 
-      // Mock: no existing medicine with that SKU
-      const queryBuilder = db();
-      queryBuilder.first.mockResolvedValue(null);
-      queryBuilder.returning.mockResolvedValue([{ id: 99, ...newMedicine }]);
+      sharedBuilder.first.mockResolvedValue(null);
+      sharedBuilder.returning.mockResolvedValue([{ id: 99, ...newMedicine }]);
 
       const res = await request(app)
         .post('/api/medicines')
@@ -110,8 +109,7 @@ describe('Medicines API', () => {
         { id: 5, name: 'Omeprazole 20mg', sku: 'OMP-020', quantity: 5, reorder_threshold: 40 },
       ];
 
-      const queryBuilder = db();
-      queryBuilder.orderBy.mockResolvedValue(lowStockMeds);
+      sharedBuilder.orderBy.mockResolvedValue(lowStockMeds);
 
       const res = await request(app).get('/api/medicines/low-stock');
 
