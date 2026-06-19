@@ -28,11 +28,11 @@ const createQueryBuilder = () => {
 };
 
 // Single shared builder instance
-const sharedBuilder = createQueryBuilder();
+const mockSharedBuilder = createQueryBuilder();
 
 // Mock the knex db module
 jest.mock('../src/db', () => {
-  const mockDb = jest.fn(() => sharedBuilder);
+  const mockDb = jest.fn(() => mockSharedBuilder);
   mockDb.raw = jest.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] });
   mockDb.fn = { now: jest.fn().mockReturnValue('NOW()') };
   mockDb.transaction = jest.fn((callback) => {
@@ -70,4 +70,4 @@ process.env.LOG_LEVEL = 'silent';
 process.env.JWT_SECRET = 'test-jwt-secret-key';
 
 // Export shared builder for test files
-module.exports = { sharedBuilder };
+module.exports = { mockSharedBuilder };

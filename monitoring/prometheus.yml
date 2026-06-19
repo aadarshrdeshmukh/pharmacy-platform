@@ -1,0 +1,16 @@
+# Prometheus Configuration
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'pharmacy-backend'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['backend:3001']
+        labels:
+          app: 'pharmacy-backend'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

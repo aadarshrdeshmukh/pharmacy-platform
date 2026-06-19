@@ -2,7 +2,7 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
 // Setup mocks before requiring the app
-const { sharedBuilder } = require('./setup');
+const { mockSharedBuilder } = require('./setup');
 
 const app = require('../src/index');
 const db = require('../src/db');
@@ -23,10 +23,10 @@ function generateTestToken(overrides = {}) {
 describe('Prescriptions API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    sharedBuilder.orderBy.mockResolvedValue([]);
-    sharedBuilder.first.mockResolvedValue(null);
-    sharedBuilder.returning.mockResolvedValue([]);
-    sharedBuilder.select.mockReturnThis();
+    mockSharedBuilder.orderBy.mockResolvedValue([]);
+    mockSharedBuilder.first.mockResolvedValue(null);
+    mockSharedBuilder.returning.mockResolvedValue([]);
+    mockSharedBuilder.select.mockReturnThis();
   });
 
   // ── GET /api/prescriptions ─────────────────────────────
@@ -43,7 +43,7 @@ describe('Prescriptions API', () => {
         },
       ];
 
-      sharedBuilder.orderBy.mockResolvedValue(mockPrescriptions);
+      mockSharedBuilder.orderBy.mockResolvedValue(mockPrescriptions);
 
       const res = await request(app).get('/api/prescriptions');
 
@@ -78,48 +78,50 @@ describe('Prescriptions API', () => {
         ],
       };
 
-      // Mock transaction to call the callback with a trx object
+      // The route uses: const trx = await db.transaction()
+      // then calls trx('tablename').insert(...) etc.
+      // So trx must be a callable that returns a query builder.
       const trxBuilder = {
-        insert: jest.fn().mockReturnThis(),
-        returning: jest.fn().mockResolvedValue([{
-          id: 10,
-          patient_name: 'Test Patient',
-          doctor_name: 'Dr. Test',
-          status: 'pending',
-          created_by: 1,
-        }]),
+        insert: jest.fn()
+          .mockResolvedValueOnce([10])   // trx('prescriptions').insert → [prescriptionId]
+          .mockResolvedValue([]),          // trx('prescription_items').insert, trx('stock_transactions').insert
         where: jest.fn().mockReturnThis(),
-        first: jest.fn().mockResolvedValue({ id: 1, name: 'Test Med', quantity: 100 }),
+        first: jest.fn()
+          .mockResolvedValueOnce({ id: 10, patient_name: 'Test Patient', doctor_name: 'Dr. Test', status: 'pending', created_by: 1 }) // trx('prescriptions').where({id}).first()
+          .mockResolvedValueOnce({ id: 1, name: 'Test Med', quantity: 100 }), // trx('medicines').where({id}).first()
         select: jest.fn().mockReturnThis(),
         leftJoin: jest.fn().mockReturnThis(),
         update: jest.fn().mockReturnThis(),
-        decrement: jest.fn().mockResolvedValue(1),
       };
 
-      const trxCallable = jest.fn(() => trxBuilder);
-      trxCallable.commit = jest.fn().mockResolvedValue(undefined);
-      trxCallable.rollback = jest.fn().mockResolvedValue(undefined);
-      trxCallable.fn = { now: jest.fn().mockReturnValue('NOW()') };
+      const trx = jest.fn(() => trxBuilder);
+      trx.commit = jest.fn().mockResolvedValue(undefined);
+      trx.rollback = jest.fn().mockResolvedValue(undefined);
+      trx.fn = { now: jest.fn().mockReturnValue('NOW()') };
 
-      db.transaction.mockImplementation(async (callback) => {
-        return callback(trxCallable);
-      });
+      db.transaction.mockResolvedValue(trx);
 
-      // Mock post-transaction queries
-      sharedBuilder.first.mockResolvedValue({
+      // Mock post-transaction queries (outside trx, uses db('prescriptions'))
+      mockSharedBuilder.where.mockReturnThis();
+      mockSharedBuilder.first.mockResolvedValue({
         id: 10,
         patient_name: 'Test Patient',
         doctor_name: 'Dr. Test',
         status: 'pending',
         created_by: 1,
       });
+      mockSharedBuilder.leftJoin.mockReturnThis();
+      mockSharedBuilder.select.mockResolvedValue([
+        { medicine_id: 1, quantity: 5, medicine_name: 'Test Med', medicine_sku: 'TST-001' },
+      ]);
 
       const res = await request(app)
         .post('/api/prescriptions')
         .set('Authorization', `Bearer ${token}`)
         .send(newPrescription);
 
-      expect([201, 500]).toContain(res.status);
+      expect(res.status).toBe(201);
+      expect(res.body).toHaveProperty('data');
     });
   });
 

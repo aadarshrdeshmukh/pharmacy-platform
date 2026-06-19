@@ -2,7 +2,7 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
 // Setup mocks before requiring the app
-const { sharedBuilder } = require('./setup');
+const { mockSharedBuilder } = require('./setup');
 
 const app = require('../src/index');
 
@@ -24,9 +24,9 @@ describe('Medicines API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset shared builder defaults
-    sharedBuilder.orderBy.mockResolvedValue([]);
-    sharedBuilder.first.mockResolvedValue(null);
-    sharedBuilder.returning.mockResolvedValue([]);
+    mockSharedBuilder.orderBy.mockResolvedValue([]);
+    mockSharedBuilder.first.mockResolvedValue(null);
+    mockSharedBuilder.returning.mockResolvedValue([]);
   });
 
   // ── GET /api/medicines ───────────────────────────────────
@@ -37,7 +37,7 @@ describe('Medicines API', () => {
         { id: 2, name: 'Ibuprofen 200mg', sku: 'IBU-200', quantity: 500 },
       ];
 
-      sharedBuilder.orderBy.mockResolvedValue(mockMedicines);
+      mockSharedBuilder.orderBy.mockResolvedValue(mockMedicines);
 
       const res = await request(app).get('/api/medicines');
 
@@ -88,8 +88,14 @@ describe('Medicines API', () => {
         unit_price: '1.50',
       };
 
-      sharedBuilder.first.mockResolvedValue(null);
-      sharedBuilder.returning.mockResolvedValue([{ id: 99, ...newMedicine }]);
+      // First db('medicines').where({ sku }).first() → null (no duplicate)
+      mockSharedBuilder.first
+        .mockResolvedValueOnce(null)
+        // Then db('medicines').where({ id: insertId }).first() → created medicine
+        .mockResolvedValueOnce({ id: 99, ...newMedicine });
+
+      // db('medicines').insert({...}) must resolve to [99] (knex returns array of IDs)
+      mockSharedBuilder.insert.mockResolvedValueOnce([99]);
 
       const res = await request(app)
         .post('/api/medicines')
@@ -109,7 +115,7 @@ describe('Medicines API', () => {
         { id: 5, name: 'Omeprazole 20mg', sku: 'OMP-020', quantity: 5, reorder_threshold: 40 },
       ];
 
-      sharedBuilder.orderBy.mockResolvedValue(lowStockMeds);
+      mockSharedBuilder.orderBy.mockResolvedValue(lowStockMeds);
 
       const res = await request(app).get('/api/medicines/low-stock');
 

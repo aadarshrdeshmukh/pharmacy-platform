@@ -1,0 +1,125 @@
+# =============================================================================
+# Full Docker Compose — All Services + Monitoring Dashboards
+# Run: docker compose -f docker-compose.full.yml up -d
+# =============================================================================
+
+services:
+  # ─── Database ──────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: pharmacy-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: pharmacy
+      MYSQL_USER: pharmacy
+      MYSQL_PASSWORD: pharmacy123
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "pharmacy", "-ppharmacy123"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - pharmacy-network
+
+  # ─── Backend API ───────────────────────────────────────────
+  backend:
+    build:
+      context: ./app/backend
+      dockerfile: Dockerfile
+    container_name: pharmacy-backend
+    ports:
+      - "3001:3001"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: pharmacy
+      DB_USER: pharmacy
+      DB_PASSWORD: pharmacy123
+      JWT_SECRET: dev-secret-key-change-me
+      NODE_ENV: development
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: >-
+      sh -c "npm run migrate && npm run seed && npm start"
+    networks:
+      - pharmacy-network
+
+  # ─── Frontend ──────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./app/frontend
+      dockerfile: Dockerfile
+    container_name: pharmacy-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - pharmacy-network
+
+  # ─── Prometheus (Metrics Collection) ───────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: pharmacy-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+    depends_on:
+      - backend
+    networks:
+      - pharmacy-network
+
+  # ─── Grafana (Dashboards & Visualization) ──────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: pharmacy-grafana
+    ports:
+      - "3002:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+    depends_on:
+      - prometheus
+    networks:
+      - pharmacy-network
+
+  # ─── Jenkins (CI/CD Pipeline) ──────────────────────────────
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: pharmacy-jenkins
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins-data:/var/jenkins_home
+    networks:
+      - pharmacy-network
+
+networks:
+  pharmacy-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  jenkins-data:
+    driver: local
